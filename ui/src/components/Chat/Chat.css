@@ -1,0 +1,130 @@
+.chat-app {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex: 2 1 0;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-header,
+.chat-window {
+  border: 1px solid var(--border);
+  border-radius: 1.125rem;
+  background: var(--surface);
+  box-shadow: 0 0.875rem 2.25rem rgba(20, 48, 71, 0.07);
+}
+
+.chat-header {
+  flex: 0 0 auto;
+  padding: 0.875rem 1.125rem;
+}
+
+.chat-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.2rem;
+}
+
+.chat-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.chat-window {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.message-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message {
+  display: flex;
+}
+
+.message.user { justify-content: flex-end; }
+.message.bot { justify-content: flex-start; }
+
+.message-bubble {
+  max-width: min(72%, 560px);
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.9375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  word-break: break-word;
+  font-size: 0.9rem;
+}
+
+.message.user .message-bubble {
+  background: var(--ink);
+  color: var(--page);
+  border-bottom-right-radius: 4px;
+}
+
+.message.bot .message-bubble {
+  background: var(--surface-muted);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+.message-bubble time {
+  align-self: flex-end;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.chat-input-row {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+}
+
+.chat-input {
+  min-width: 0;
+  flex: 1;
+  padding: 0.6875rem 0.9375rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  outline: none;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.chat-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.1875rem var(--accent-soft);
+}
+
+.chat-send-button {
+  flex: 0 0 auto;
+  padding: 0.6875rem 1.125rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .chat-app { height: min(32rem, 60vh); }
+}
+
+@media (max-width: 480px) {
+  .chat-input-row { flex-direction: column; }
+  .chat-send-button { width: 100%; }
+}

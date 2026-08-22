@@ -1,0 +1,28 @@
+.top-nav {
+  position: fixed;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 0.75rem max(1.125rem, calc((100% - 77.5rem) / 2 + 1.75rem));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: color-mix(in srgb, var(--page) 94%, transparent);
+  backdrop-filter: blur(0.875rem);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand-mark { display: inline-flex; align-items: center; gap: 0.5625rem; color: var(--ink); font-size: 0.98rem; font-weight: 800; letter-spacing: 0.02em; text-decoration: none; }
+.brand-mark-icon { display: inline-grid; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: 0.5rem; background: var(--accent); color: var(--ink); font-size: 1rem; }
+.nav-status { display: inline-flex; align-items: center; gap: 0.5rem; margin-left: auto; margin-right: 1rem; color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.status-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #3aa981; box-shadow: 0 0 0 0.25rem rgba(58, 169, 129, 0.12); }
+
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-width: 4.75rem; padding: 0.45rem 0.7rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: 0.75rem; cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
+.theme-toggle:hover { border-color: var(--accent); }
+
+@media (max-width: 560px) {
+  .top-nav { padding: 0.625rem 1.125rem; }
+  .nav-status { margin-right: 0.625rem; font-size: 0; }
+  .theme-toggle { min-width: 2.25rem; padding-inline: 0.55rem; }
+}

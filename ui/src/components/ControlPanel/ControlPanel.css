@@ -1,0 +1,43 @@
+.control-panel {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  padding: clamp(1rem, 2vw, 1.375rem);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 1.125rem;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  box-shadow: 0 0.875rem 2.25rem rgba(20, 48, 71, 0.07);
+}
+
+.panel-heading { padding-bottom: 1.125rem; border-bottom: 1px solid var(--border); }
+.panel-kicker {
+  display: block;
+  margin-bottom: 0.4375rem;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.panel-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: Georgia, serif;
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+  line-height: 1.05;
+}
+.panel-heading p { margin: 0.625rem 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+.control-fields { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1.125rem; }
+.control-field { display: flex; flex-direction: column; gap: 0.3125rem; color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+.control-field select { width: 100%; padding: 0.625rem 0.6875rem; border: 1px solid var(--border); border-radius: 0.5rem; outline: none; background: var(--surface); color: var(--ink); font: inherit; font-weight: 500; }
+.control-field select:focus { border-color: var(--accent); box-shadow: 0 0 0 0.1875rem var(--accent-soft); }
+.control-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.4375rem; width: 100%; padding: 0.625rem 0.875rem; border: 1px solid transparent; border-radius: 0.5rem; font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
+.control-button.primary { background: var(--ink); color: var(--page); }
+.control-button:disabled { opacity: 0.65; cursor: wait; transform: none; }
+.control-button.secondary { border-color: var(--border); background: var(--surface); color: var(--ink); }
+.panel-note { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: auto; padding-top: 1.125rem; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+.panel-note:has(.note-icon + span:not(:empty)) { overflow-wrap: anywhere; }
+.note-icon { display: inline-grid; flex: 0 0 auto; width: 1rem; height: 1rem; place-items: center; border: 1px solid var(--muted); border-radius: 50%; font-size: 0.6rem; font-weight: 800; }
