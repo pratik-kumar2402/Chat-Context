@@ -35,6 +35,16 @@ export class GithubMcpClient extends BaseMcpClient {
     return this.parseTextResult<GithubRepository[]>(result.content)
   }
 
+  async getProfile() {
+    const result = await this.callTool('github_profile', {}, { logToolErrors: false })
+    return this.parseTextResult<{ login: string }>(result.content)
+  }
+
+  async disconnect() {
+    const result = await this.callTool('github_disconnect')
+    return this.parseTextResult<string>(result.content)
+  }
+
   async listAllowedFiles(repositoryFullName: string) {
     const result = await this.callTool('list_allowed_github_files', { repositoryFullName })
     return this.parseTextResult<GithubAllowedFile[]>(result.content)
@@ -43,6 +53,16 @@ export class GithubMcpClient extends BaseMcpClient {
   async getFileContext(repositoryFullName: string, filePath: string) {
     const result = await this.callTool('get_github_file_context', { repositoryFullName, filePath })
     return this.parseTextResult<GithubFileContext>(result.content)
+  }
+
+  async ingestFileContext(repositoryFullName: string, filePath: string, content: string) {
+    const result = await this.callTool('ingest_github_file_context', { repositoryFullName, filePath, content })
+    return this.parseTextResult<{ status: string; chunks: number; filePath: string }>(result.content)
+  }
+
+  async askLocalModel(query: string) {
+    const result = await this.callTool('ask_local_model', { query })
+    return this.parseTextResult<{ answer: string; sources: unknown[] }>(result.content)
   }
 
   private parseTextResult<T>(content: unknown): T {

@@ -1,10 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createGithubMcpClient } from '../../client/Client'
+import { logger } from '../../client/logger'
 import type { GithubAllowedFile, GithubRepository } from '../../client/clients/GithubMcpClient'
 import './ControlPanel.css'
 
-function ControlPanel() {
+type ControlPanelProps = {
+  onRetrievalChange: (isRetrieving: boolean) => void
+}
+
+function ControlPanel({ onRetrievalChange }: ControlPanelProps) {
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
+  const [isCheckingConnection, setIsCheckingConnection] = useState(true)
   const [connectionError, setConnectionError] = useState('')
   const [repositories, setRepositories] = useState<GithubRepository[]>([])
   const [selectedRepository, setSelectedRepository] = useState('')
@@ -14,9 +21,36 @@ function ControlPanel() {
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [isRetrieving, setIsRetrieving] = useState(false)
 
+  useEffect(() => {
+    const checkConnection = async () => {
+      let mcpClient: Awaited<ReturnType<typeof createGithubMcpClient>> | undefined
+
+      try {
+        mcpClient = await createGithubMcpClient()
+        await mcpClient.getProfile()
+        setIsConnected(true)
+        logger.info('GitHub connection check succeeded')
+      } catch {
+        setIsConnected(false)
+        logger.info('GitHub connection check found no active connection')
+      } finally {
+        await mcpClient?.close()
+        setIsCheckingConnection(false)
+      }
+    }
+
+    void checkConnection()
+
+    // OAuth returns to this page after the callback completes in the parent component.
+    const handleConnectionChange = () => void checkConnection()
+    window.addEventListener('github-connection-changed', handleConnectionChange)
+    return () => window.removeEventListener('github-connection-changed', handleConnectionChange)
+  }, [])
+
   const handleConnect = async () => {
     setIsConnecting(true)
     setConnectionError('')
+    logger.info('GitHub connect action triggered')
 
     let mcpClient: Awaited<ReturnType<typeof createGithubMcpClient>> | undefined
     try {
@@ -34,6 +68,7 @@ function ControlPanel() {
 
       window.location.assign(authorizationUrl)
     } catch (error) {
+      logger.error('GitHub connect action failed', error)
       setConnectionError(error instanceof Error ? error.message : 'Unable to connect GitHub.')
       setIsConnecting(false)
     } finally {
@@ -41,8 +76,32 @@ function ControlPanel() {
     }
   }
 
+  const handleDisconnect = async () => {
+    setIsConnecting(true)
+    setConnectionError('')
+    logger.info('GitHub disconnect action triggered')
+
+    let mcpClient: Awaited<ReturnType<typeof createGithubMcpClient>> | undefined
+    try {
+      mcpClient = await createGithubMcpClient()
+      await mcpClient.disconnect()
+      setIsConnected(false)
+      setRepositories([])
+      setAllowedFiles([])
+      setSelectedRepository('')
+      setSelectedFile('')
+      logger.info('GitHub disconnect action succeeded')
+    } catch (error) {
+      logger.error('GitHub disconnect action failed', error)
+      setConnectionError(error instanceof Error ? error.message : 'Unable to disconnect GitHub.')
+    } finally {
+      await mcpClient?.close()
+      setIsConnecting(false)
+    }
+  }
+
   const loadRepositories = async () => {
-    if (repositories.length > 0 || isLoadingRepositories) return
+    if (!isConnected || repositories.length > 0 || isLoadingRepositories) return
 
     setIsLoadingRepositories(true)
     setConnectionError('')
@@ -52,6 +111,10 @@ function ControlPanel() {
       mcpClient = await createGithubMcpClient()
       setRepositories(await mcpClient.listRepositories())
     } catch (error) {
+      if (error instanceof Error && error.message.includes('GitHub is not connected')) {
+        setIsConnected(false)
+        setRepositories([])
+      }
       setConnectionError(error instanceof Error ? error.message : 'Unable to load GitHub repositories.')
     } finally {
       await mcpClient?.close()
@@ -73,6 +136,11 @@ function ControlPanel() {
       mcpClient = await createGithubMcpClient()
       setAllowedFiles(await mcpClient.listAllowedFiles(repositoryFullName))
     } catch (error) {
+      if (error instanceof Error && error.message.includes('GitHub is not connected')) {
+        setIsConnected(false)
+        setSelectedRepository('')
+        setAllowedFiles([])
+      }
       setConnectionError(error instanceof Error ? error.message : 'Unable to load repository files.')
     } finally {
       await mcpClient?.close()
@@ -84,18 +152,25 @@ function ControlPanel() {
     if (!selectedRepository || !selectedFile || isRetrieving) return
 
     setIsRetrieving(true)
+    onRetrievalChange(true)
     setConnectionError('')
+    logger.info('Retrieve action triggered', { repository: selectedRepository, file: selectedFile })
     let mcpClient: Awaited<ReturnType<typeof createGithubMcpClient>> | undefined
 
     try {
       mcpClient = await createGithubMcpClient()
       const context = await mcpClient.getFileContext(selectedRepository, selectedFile)
       console.log('GitHub file context:', context)
+      const ingestion = await mcpClient.ingestFileContext(selectedRepository, selectedFile, context.content)
+      console.log('GitHub file indexed for model:', ingestion)
+      logger.info('Retrieve action succeeded', { repository: selectedRepository, file: selectedFile })
     } catch (error) {
+      logger.error('Retrieve action failed', error)
       setConnectionError(error instanceof Error ? error.message : 'Unable to retrieve the selected file.')
     } finally {
       await mcpClient?.close()
       setIsRetrieving(false)
+      onRetrievalChange(false)
     }
   }
 
@@ -117,11 +192,11 @@ function ControlPanel() {
         <button
           className="control-button primary"
           type="button"
-          onClick={handleConnect}
-          disabled={isConnecting}
+          onClick={() => void (isConnected ? handleDisconnect() : handleConnect())}
+          disabled={isConnecting || isCheckingConnection}
         >
-          <span aria-hidden="true">↗</span>
-          {isConnecting ? 'Connecting...' : 'Connect'}
+          <span aria-hidden="true">{isConnected ? '↙' : '↗'}</span>
+          {isConnecting ? (isConnected ? 'Disconnecting...' : 'Connecting...') : `${isConnected ? 'Disconnect from' : 'Connect to'} GitHub`}
         </button>
         <label className="control-field">
           <span>Repository</span>
@@ -129,7 +204,7 @@ function ControlPanel() {
             value={selectedRepository}
             onFocus={loadRepositories}
             onChange={(event) => void handleRepositoryChange(event.target.value)}
-            disabled={isLoadingRepositories}
+            disabled={!isConnected || isCheckingConnection || isLoadingRepositories}
           >
             <option value="">{isLoadingRepositories ? 'Loading repositories...' : 'Select a repository'}</option>
             {repositories.map((repository) => (
@@ -142,7 +217,7 @@ function ControlPanel() {
           <select
             value={selectedFile}
             onChange={(event) => setSelectedFile(event.target.value)}
-            disabled={!selectedRepository || isLoadingFiles}
+            disabled={!isConnected || !selectedRepository || isLoadingFiles}
           >
             <option value="">{isLoadingFiles ? 'Loading files...' : 'Select a .md or .txt file'}</option>
             {allowedFiles.map((file) => (

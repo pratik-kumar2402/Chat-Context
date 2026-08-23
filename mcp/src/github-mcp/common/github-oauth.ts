@@ -17,7 +17,7 @@ export const githubTokenResponseSchema = z.object({
 
 export const githubOAuthConfig = {
     homepageUrl: process.env.GITHUB_HOMEPAGE_URL ?? 'http://localhost:5173',
-    callbackUrl: process.env.GITHUB_CALLBACK_URL ?? 'http://localhost:5317/callback',
+    callbackUrl: process.env.GITHUB_CALLBACK_URL ?? 'http://localhost:5173/callback',
     clientId: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
     scope: process.env.GITHUB_OAUTH_SCOPE ?? 'read:user user:email repo'

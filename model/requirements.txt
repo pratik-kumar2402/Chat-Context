@@ -1,0 +1,6 @@
+langchain
+langchain-ollama
+numpy
+python-dotenv
+starlette
+uvicorn

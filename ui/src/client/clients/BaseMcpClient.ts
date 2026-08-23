@@ -1,4 +1,5 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
+import { logger } from '../logger'
 
 export abstract class BaseMcpClient {
   protected readonly client: Client
@@ -12,8 +13,10 @@ export abstract class BaseMcpClient {
 
   async connect() {
     if (!this.connected) {
+      logger.info('MCP connection started')
       await this.client.connect(this.transport)
       this.connected = true
+      logger.info('MCP connection succeeded')
     }
 
     return {
@@ -29,14 +32,26 @@ export abstract class BaseMcpClient {
     return result.tools
   }
 
-  async callTool(name: string, args: Record<string, unknown> = {}) {
+  async callTool(name: string, args: Record<string, unknown> = {}, options: { logToolErrors?: boolean } = {}) {
     await this.ensureConnected()
-    const result = await this.client.callTool({ name, arguments: args })
+    // Logging here covers every GitHub tool without exposing request arguments such as file contents.
+    logger.info('MCP tool call started', { name })
+    let result
+    try {
+      result = await this.client.callTool({ name, arguments: args })
+    } catch (error) {
+      logger.error('MCP tool call failed', error)
+      throw error
+    }
 
     if (result.isError) {
+      if (options.logToolErrors !== false) {
+        logger.error('MCP tool returned an error', result.content)
+      }
       throw new Error(this.getToolError(result.content))
     }
 
+    logger.info('MCP tool call succeeded', { name })
     return result
   }
 

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { createGithubMcpClient } from '../../client/Client'
+import { logger } from '../../client/logger'
 import './Chat.css'
 
 type ChatMessage = {
@@ -9,7 +12,11 @@ type ChatMessage = {
   time: string
 }
 
-function Chat() {
+type ChatProps = {
+  isRetrieving: boolean
+}
+
+function Chat({ isRetrieving }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 1,
@@ -19,16 +26,17 @@ function Chat() {
     },
   ])
   const [inputValue, setInputValue] = useState('')
+  const [isSending, setIsSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = (event: FormEvent<HTMLFormElement>) => {
+  const handleSend = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const trimmed = inputValue.trim()
-    if (!trimmed) return
+    if (!trimmed || isRetrieving) return
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     setMessages((previous) => [
@@ -36,18 +44,38 @@ function Chat() {
       { id: Date.now(), sender: 'user', text: trimmed, time: timestamp },
     ])
     setInputValue('')
+    setIsSending(true)
+    logger.info('Chat action triggered')
 
-    window.setTimeout(() => {
+    let mcpClient: Awaited<ReturnType<typeof createGithubMcpClient>> | undefined
+    try {
+      mcpClient = await createGithubMcpClient()
+      const result = await mcpClient.askLocalModel(trimmed)
       setMessages((previous) => [
         ...previous,
         {
           id: Date.now(),
           sender: 'bot',
-          text: `You said: "${trimmed}". This is a sample chat response.`,
+          text: result.answer,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ])
-    }, 500)
+      logger.info('Chat action succeeded')
+    } catch (error) {
+      logger.error('Chat action failed', error)
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: Date.now(),
+          sender: 'bot',
+          text: error instanceof Error ? error.message : 'Unable to reach the local model.',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ])
+    } finally {
+      await mcpClient?.close()
+      setIsSending(false)
+    }
   }
 
   return (
@@ -64,7 +92,7 @@ function Chat() {
           {messages.map((message) => (
             <li key={message.id} className={`message ${message.sender}`}>
               <div className="message-bubble">
-                <span>{message.text}</span>
+                {message.sender === 'bot' ? <div className="message-markdown"><ReactMarkdown>{message.text}</ReactMarkdown></div> : <span>{message.text}</span>}
                 <time>{message.time}</time>
               </div>
             </li>
@@ -79,9 +107,10 @@ function Chat() {
           className="chat-input"
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
-          placeholder="Type your message..."
+          placeholder={isRetrieving ? 'Waiting for context retrieval...' : isSending ? 'Waiting for the local model...' : 'Type your message...'}
+          disabled={isSending || isRetrieving}
         />
-        <button type="submit" className="chat-send-button">Send</button>
+        <button type="submit" className="chat-send-button" disabled={isSending || isRetrieving}>Send</button>
       </form>
     </section>
   )

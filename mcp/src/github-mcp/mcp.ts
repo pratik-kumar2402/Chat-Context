@@ -7,6 +7,8 @@ import { getGithubProfile } from './modules/github-profile.js';
 import { listAllGitHubRepositories } from './modules/listAllGitHubRepositories.js';
 import { listAllowedGitHubFiles } from './modules/listAllowedGitHubFiles.js';
 import { getGitHubFileContext } from './modules/getGitHubFileContext.js';
+import { ingestGitHubFileContext } from './modules/ingestGitHubFileContext.js';
+import { askLocalModel } from './modules/askLocalModel.js';
 
 export const createGithubMcpServer = async () => {
     const server = new McpServer({ name: 'mcp-server', version: '1.0.0' });
@@ -71,7 +73,7 @@ export const createGithubMcpServer = async () => {
         { description: 'Clear the current server-side GitHub access token.', inputSchema: z.object({}) },
         async () => {
             try {
-                return { content: [{ type: 'text', text: disconnectGithub() }] };
+                return { content: [{ type: 'text', text: JSON.stringify(disconnectGithub()) }] };
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unable to disconnect GitHub.';
                 return { isError: true, content: [{ type: 'text', text: message }] };
@@ -119,6 +121,38 @@ export const createGithubMcpServer = async () => {
                 return { content: [{ type: 'text', text: JSON.stringify(await getGitHubFileContext(repositoryFullName, filePath)) }] };
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unable to retrieve the GitHub file.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'ingest_github_file_context',
+        {
+            description: 'Chunk and index GitHub file context in the local vector store.',
+            inputSchema: z.object({ repositoryFullName: z.string(), filePath: z.string(), content: z.string() })
+        },
+        async ({ repositoryFullName, filePath, content }) => {
+            try {
+                return { content: [{ type: 'text', text: JSON.stringify(await ingestGitHubFileContext(repositoryFullName, filePath, content)) }] };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to ingest GitHub file context.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'ask_local_model',
+        {
+            description: 'Retrieve relevant indexed context and ask the local model to answer a query.',
+            inputSchema: z.object({ query: z.string() })
+        },
+        async ({ query }) => {
+            try {
+                return { content: [{ type: 'text', text: JSON.stringify(await askLocalModel(query)) }] };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to get a response from the local model.';
                 return { isError: true, content: [{ type: 'text', text: message }] };
             }
         }
