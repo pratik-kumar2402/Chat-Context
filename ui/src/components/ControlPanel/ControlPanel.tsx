@@ -9,9 +9,11 @@ type Source = 'github' | 'google-drive' | 'local'
 
 type ControlPanelProps = {
   onRetrievalChange: (isRetrieving: boolean) => void
+  authenticationError: string
+  onAuthenticationErrorClear: () => void
 }
 
-function ControlPanel({ onRetrievalChange }: ControlPanelProps) {
+function ControlPanel({ onRetrievalChange, authenticationError, onAuthenticationErrorClear }: ControlPanelProps) {
   const [source, setSource] = useState<Source>(() =>
     window.location.pathname.endsWith('/callback/google') ? 'google-drive' : 'github',
   )
@@ -50,9 +52,14 @@ function ControlPanel({ onRetrievalChange }: ControlPanelProps) {
         await mcpClient.getProfile()
         setIsGithubConnected(true)
         logger.info('GitHub connection check succeeded')
-      } catch {
+      } catch (error) {
         setIsGithubConnected(false)
-        logger.info('GitHub connection check found no active connection')
+        if (error instanceof Error && error.message.includes('GitHub is not connected')) {
+          logger.info('GitHub connection check found no active connection')
+        } else {
+          logger.error('GitHub connection check failed', error)
+          setConnectionError(error instanceof Error ? error.message : 'Unable to check GitHub connection.')
+        }
       } finally {
         await mcpClient?.close()
         setIsCheckingGithubConnection(false)
@@ -68,6 +75,7 @@ function ControlPanel({ onRetrievalChange }: ControlPanelProps) {
       } catch (error) {
         setIsGoogleDriveConnected(false)
         logger.error('Google Drive connection check failed', error)
+        setConnectionError(error instanceof Error ? error.message : 'Unable to check Google Drive connection.')
       } finally {
         await mcpClient?.close()
         setIsCheckingGoogleDriveConnection(false)
@@ -80,23 +88,18 @@ function ControlPanel({ onRetrievalChange }: ControlPanelProps) {
     // OAuth returns to this page after the callback completes in the parent component.
     const handleGithubConnectionChange = () => void checkGithubConnection()
     const handleGoogleDriveConnectionChange = () => void checkGoogleDriveConnection()
-    const handleGoogleDriveConnectionError = (event: Event) => {
-      const callbackError = (event as CustomEvent<string>).detail
-      setConnectionError(callbackError || 'Google Drive authentication failed.')
-    }
     window.addEventListener('github-connection-changed', handleGithubConnectionChange)
     window.addEventListener('google-drive-connection-changed', handleGoogleDriveConnectionChange)
-    window.addEventListener('google-drive-connection-error', handleGoogleDriveConnectionError)
     return () => {
       window.removeEventListener('github-connection-changed', handleGithubConnectionChange)
       window.removeEventListener('google-drive-connection-changed', handleGoogleDriveConnectionChange)
-      window.removeEventListener('google-drive-connection-error', handleGoogleDriveConnectionError)
     }
   }, [])
 
   const handleConnect = async () => {
     setIsConnecting(true)
     setConnectionError('')
+    onAuthenticationErrorClear()
     try {
       if (source === 'github') {
         logger.info('GitHub connect action triggered')
@@ -423,7 +426,7 @@ function ControlPanel({ onRetrievalChange }: ControlPanelProps) {
 
       <div className="panel-note">
         <span className="note-icon" aria-hidden="true">i</span>
-        <span>{connectionError || retrievalStatus || (source === 'local'
+        <span>{connectionError || authenticationError || retrievalStatus || (source === 'local'
           ? 'Selected files are read in your browser and sent to the local model service for indexing.'
           : 'Retrieved context will appear here when connected.')}</span>
       </div>

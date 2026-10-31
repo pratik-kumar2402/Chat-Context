@@ -58,9 +58,19 @@ export abstract class BaseMcpClient {
   async close() {
     if (!this.connected) return
 
-    await this.transport.terminateSession()
-    await this.client.close()
-    this.connected = false
+    try {
+      await this.transport.terminateSession()
+    } catch (error) {
+      logger.warn('MCP session termination failed during cleanup', { error })
+    }
+
+    try {
+      await this.client.close()
+    } catch (error) {
+      logger.error('MCP client close failed', error)
+    } finally {
+      this.connected = false
+    }
   }
 
   private async ensureConnected() {

@@ -18,6 +18,15 @@ import {
     listGoogleDriveFiles
 } from '../google-drive/common/google-drive.js';
 import { ingestFileContext } from './common/model-client.js';
+import { logger } from '../common/logger.js';
+
+function toolFailure(action: string, error: unknown, fallback: string) {
+    logger.error(`${action} failed`, error);
+    return {
+        isError: true as const,
+        content: [{ type: 'text' as const, text: error instanceof Error ? error.message : fallback }]
+    };
+}
 
 export const createGithubMcpServer = async () => {
     const server = new McpServer({ name: 'mcp-server', version: '1.0.0' });
@@ -42,8 +51,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: `Open this URL to connect GitHub: ${getGithubAuthorizationUrl()}` }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to create GitHub authorization URL.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub authorization URL creation', error, 'Unable to create GitHub authorization URL.');
             }
         }
     );
@@ -58,8 +66,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: await handleGithubCallback({ code, state }) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'GitHub OAuth callback failed.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub OAuth callback', error, 'GitHub OAuth callback failed.');
             }
         }
     );
@@ -71,8 +78,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await getGithubProfile(), null, 2) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to load the GitHub profile.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub profile lookup', error, 'Unable to load the GitHub profile.');
             }
         }
     );
@@ -84,8 +90,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(disconnectGithub()) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to disconnect GitHub.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub disconnect', error, 'Unable to disconnect GitHub.');
             }
         }
     );
@@ -97,8 +102,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await listAllGitHubRepositories(), null, 2) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to list GitHub repositories.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub repository listing', error, 'Unable to list GitHub repositories.');
             }
         }
     );
@@ -113,8 +117,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await listAllowedGitHubFiles(repositoryFullName), null, 2) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to list allowed GitHub files.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub file listing', error, 'Unable to list allowed GitHub files.');
             }
         }
     );
@@ -129,8 +132,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await getGitHubFileContext(repositoryFullName, filePath)) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to retrieve the GitHub file.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub file retrieval', error, 'Unable to retrieve the GitHub file.');
             }
         }
     );
@@ -145,8 +147,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await ingestGitHubFileContext(repositoryFullName, filePath, content)) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to ingest GitHub file context.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('GitHub file ingestion', error, 'Unable to ingest GitHub file context.');
             }
         }
     );
@@ -169,8 +170,7 @@ export const createGithubMcpServer = async () => {
                     }]
                 };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to ingest local file context.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('Local file ingestion', error, 'Unable to ingest local file context.');
             }
         }
     );
@@ -185,8 +185,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await askLocalModel(query)) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to get a response from the local model.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('Local model request', error, 'Unable to get a response from the local model.');
             }
         }
     );
@@ -203,8 +202,7 @@ export const createGithubMcpServer = async () => {
                     }]
                 };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to create Google authorization URL.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('Google authorization URL creation', error, 'Unable to create Google authorization URL.');
             }
         }
     );
@@ -219,8 +217,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: await handleGoogleDriveCallback({ code, state }) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Google OAuth callback failed.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('Google OAuth callback', error, 'Google OAuth callback failed.');
             }
         }
     );
@@ -251,8 +248,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await listGoogleDriveFiles()) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to list Google Drive files.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('Google Drive file listing', error, 'Unable to list Google Drive files.');
             }
         }
     );
@@ -267,8 +263,7 @@ export const createGithubMcpServer = async () => {
             try {
                 return { content: [{ type: 'text', text: JSON.stringify(await getGoogleDriveFileContext(fileId)) }] };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to retrieve the Google Drive file.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('Google Drive file retrieval', error, 'Unable to retrieve the Google Drive file.');
             }
         }
     );
@@ -288,8 +283,7 @@ export const createGithubMcpServer = async () => {
                     }]
                 };
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unable to ingest Google Drive file context.';
-                return { isError: true, content: [{ type: 'text', text: message }] };
+                return toolFailure('Google Drive file ingestion', error, 'Unable to ingest Google Drive file context.');
             }
         }
     );

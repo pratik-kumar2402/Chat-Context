@@ -4,7 +4,7 @@ This folder contains the React and TypeScript frontend for Context Chat. It conn
 
 ## Run
 
-Start the MCP server first, then run the UI:
+For local development, start the MCP server first, then run the UI:
 
 ```bash
 cd mcp

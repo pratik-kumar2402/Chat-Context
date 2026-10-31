@@ -97,8 +97,8 @@ function Chat({ isRetrieving }: ChatProps) {
               </div>
             </li>
           ))}
-          <div ref={messagesEndRef} />
         </ul>
+        <div ref={messagesEndRef} />
       </div>
 
       <form className="chat-input-row" onSubmit={handleSend}>

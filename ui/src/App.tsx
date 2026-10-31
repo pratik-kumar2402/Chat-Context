@@ -7,9 +7,35 @@ import Navbar from './components/Navbar/Navbar'
 import { createGithubMcpClient, createGoogleDriveMcpClient } from './client/Client'
 import { logger } from './client/logger'
 
+function getSavedTheme(): boolean {
+  try {
+    return localStorage.getItem('context-chat-theme') === 'dark'
+  } catch (error) {
+    logger.warn('Saved theme could not be loaded', { error })
+    return false
+  }
+}
+
+function getAuthenticationCallbackError(): string {
+  const callbackPath = window.location.pathname
+  const isGoogleCallback = callbackPath.endsWith('/callback/google')
+  const isGithubCallback = callbackPath.endsWith('/callback')
+  if (!isGoogleCallback && !isGithubCallback) return ''
+
+  const callbackParams = new URLSearchParams(window.location.search)
+  const callbackError = callbackParams.get('error_description') ?? callbackParams.get('error')
+  if (callbackError) return callbackError
+  if (!callbackParams.get('code') || !callbackParams.get('state')) {
+    return `${isGoogleCallback ? 'Google' : 'GitHub'} OAuth callback did not include a code and state.`
+  }
+
+  return ''
+}
+
 function App() {
-  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('context-chat-theme') === 'dark')
+  const [isDarkMode, setIsDarkMode] = useState(getSavedTheme)
   const [isRetrieving, setIsRetrieving] = useState(false)
+  const [authenticationError, setAuthenticationError] = useState(getAuthenticationCallbackError)
 
   useEffect(() => {
     const callbackParams = new URLSearchParams(window.location.search)
@@ -20,13 +46,7 @@ function App() {
     if (isGoogleDriveCallback) {
       const callbackError = callbackParams.get('error_description') ?? callbackParams.get('error')
       window.history.replaceState({}, document.title, window.location.pathname)
-      if (callbackError || !code || !state) {
-        window.dispatchEvent(new CustomEvent(
-          'google-drive-connection-error',
-          { detail: callbackError ?? 'Google OAuth callback did not include a code and state.' },
-        ))
-        return
-      }
+      if (callbackError || !code || !state) return
 
       const completeGoogleDriveAuthentication = async () => {
         let mcpClient: Awaited<ReturnType<typeof createGoogleDriveMcpClient>> | undefined
@@ -38,10 +58,7 @@ function App() {
           logger.info('Google Drive callback handling succeeded')
         } catch (error) {
           logger.error('Google Drive callback handling failed', error)
-          window.dispatchEvent(new CustomEvent(
-            'google-drive-connection-error',
-            { detail: error instanceof Error ? error.message : 'Google Drive authentication callback failed.' },
-          ))
+          setAuthenticationError(error instanceof Error ? error.message : 'Google Drive authentication callback failed.')
         } finally {
           await mcpClient?.close()
         }
@@ -66,7 +83,7 @@ function App() {
         logger.info('GitHub callback handling succeeded')
       } catch (error) {
         logger.error('GitHub callback handling failed', error)
-        console.error('GitHub authentication callback failed.', error)
+        setAuthenticationError(error instanceof Error ? error.message : 'GitHub authentication callback failed.')
       } finally {
         await mcpClient?.close()
       }
@@ -78,7 +95,11 @@ function App() {
   const toggleTheme = () => {
     setIsDarkMode((previous) => {
       const nextThemeIsDark = !previous
-      localStorage.setItem('context-chat-theme', nextThemeIsDark ? 'dark' : 'light')
+      try {
+        localStorage.setItem('context-chat-theme', nextThemeIsDark ? 'dark' : 'light')
+      } catch (error) {
+        logger.warn('Theme preference could not be saved', { error })
+      }
       return nextThemeIsDark
     })
   }
@@ -95,7 +116,11 @@ function App() {
         </header>
 
         <section className="workspace-grid" aria-label="Chat workspace">
-          <ControlPanel onRetrievalChange={setIsRetrieving} />
+          <ControlPanel
+            onRetrievalChange={setIsRetrieving}
+            authenticationError={authenticationError}
+            onAuthenticationErrorClear={() => setAuthenticationError('')}
+          />
           <Chat isRetrieving={isRetrieving} />
         </section>
       </main>

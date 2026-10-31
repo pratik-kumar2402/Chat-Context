@@ -6,8 +6,8 @@ This folder contains the backend MCP server for Context Chat. It exposes GitHub 
 
 - Node.js
 - A GitHub OAuth App
-- A Google OAuth client with the Google Drive API enabled
-- GitHub and Google OAuth credentials in `mcp/.env`
+- GitHub OAuth credentials in `mcp/.env` to connect GitHub
+- Optional Google OAuth credentials and the Google Drive API to connect Google Drive
 
 ## Configuration
 
@@ -25,7 +25,7 @@ GOOGLE_CALLBACK_URL=http://localhost:5173/callback/google
 APP_ENV=dev
 ```
 
-Register the callback URLs exactly in the corresponding OAuth app settings. In Google Cloud, enable the Google Drive API, configure the OAuth consent screen, and add your account as a test user if the app is in testing. Google access uses the read-only `drive.readonly` scope; tokens are kept in MCP server memory.
+Register the GitHub callback URL exactly in the GitHub OAuth app settings. To enable Google Drive, also set the Google credentials, register its callback URL exactly, enable the Google Drive API, configure the OAuth consent screen, and add your account as a test user if the app is in testing. Google access uses the read-only `drive.readonly` scope; tokens are kept in MCP server memory.
 
 ## Run
 
@@ -44,6 +44,8 @@ http://localhost:3000/github-mcp
 The endpoint supports Streamable HTTP `GET`, `POST`, and `DELETE` requests. CORS uses `GITHUB_HOMEPAGE_URL` as the allowed UI origin.
 
 `APP_ENV=dev` logs actions, successes, and failures. Use `APP_ENV=prod` to log warnings and failures only. The server never logs OAuth tokens or model/file contents.
+
+Tool failures are logged by the MCP service and returned to the caller as MCP tool errors. Unhandled HTTP failures are logged with method and path; 5xx responses do not include internal exception details.
 
 The MCP server forwards model requests to `MODEL_BASE_URL` and uses `MODEL_TIMEOUT_SECONDS` for its request deadline. For local runs, set `MODEL_BASE_URL=http://localhost:8000`; Docker Compose overrides it to use the `model` service name. Keep the timeout aligned with the model service configuration; the default is 180 seconds.
 

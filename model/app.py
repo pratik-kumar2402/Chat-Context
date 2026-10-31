@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -22,6 +23,8 @@ MODEL_NAME = os.getenv("MODEL_NAME", "qwen3.5:0.8b")
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "qwen3-embedding:0.6b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MODEL_TIMEOUT_SECONDS = int(os.getenv("MODEL_TIMEOUT_SECONDS", "180"))
+if MODEL_TIMEOUT_SECONDS <= 0:
+    raise ValueError("MODEL_TIMEOUT_SECONDS must be a positive integer.")
 CHUNK_SIZE = 1200
 CHUNK_OVERLAP = 200
 INSTRUCTIONS_PATH = Path(__file__).with_name("instructions.md")
@@ -65,7 +68,15 @@ async def health(_: Request) -> JSONResponse:
 
 async def ingest(request: Request) -> JSONResponse:
     try:
-        body = await request.json()
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            logger.warning("Ingestion rejected: request body was not valid JSON")
+            return JSONResponse({"error": "Request body must be valid JSON."}, status_code=400)
+        if not isinstance(body, dict):
+            logger.warning("Ingestion rejected: request body was not an object")
+            return JSONResponse({"error": "Request body must be a JSON object."}, status_code=400)
+
         content = body.get("content")
         if not isinstance(content, str) or not content.strip():
             logger.warning("Ingestion rejected: content was empty or invalid")
@@ -89,12 +100,21 @@ async def ingest(request: Request) -> JSONResponse:
         return JSONResponse({"error": "The embedding operation exceeded the configured time limit."}, status_code=504)
     except Exception as error:
         logger.exception("Ingestion failed")
-        return JSONResponse({"error": str(error)}, status_code=500)
+        message = str(error) if APP_ENV != "prod" else "The model service could not ingest the file."
+        return JSONResponse({"error": message}, status_code=500)
 
 
 async def chat(request: Request) -> JSONResponse:
     try:
-        body = await request.json()
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            logger.warning("Chat request rejected: request body was not valid JSON")
+            return JSONResponse({"error": "Request body must be valid JSON."}, status_code=400)
+        if not isinstance(body, dict):
+            logger.warning("Chat request rejected: request body was not an object")
+            return JSONResponse({"error": "Request body must be a JSON object."}, status_code=400)
+
         query = body.get("query")
         if not isinstance(query, str) or not query.strip():
             logger.warning("Chat request rejected: query was empty or invalid")
@@ -114,10 +134,14 @@ async def chat(request: Request) -> JSONResponse:
         return JSONResponse({"answer": response.content, "sources": [document.metadata for document in documents]})
     except asyncio.TimeoutError:
         logger.error("Chat request failed: model timed out")
-        return JSONResponse({"error": "The local model exceeded the three-minute processing limit."}, status_code=504)
+        return JSONResponse(
+            {"error": f"The local model exceeded the {MODEL_TIMEOUT_SECONDS}-second processing limit."},
+            status_code=504,
+        )
     except Exception as error:
         logger.exception("Chat request failed")
-        return JSONResponse({"error": str(error)}, status_code=500)
+        message = str(error) if APP_ENV != "prod" else "The model service could not complete the chat request."
+        return JSONResponse({"error": message}, status_code=500)
 
 
 app = Starlette(routes=[

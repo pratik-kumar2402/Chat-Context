@@ -16,6 +16,30 @@ await app.register(cors, {
     allowedHeaders: mcpCorsHeaders,
     exposedHeaders: ['Mcp-Session-Id']
 });
+
+app.setErrorHandler((error, request, reply) => {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error.';
+    const statusCode =
+        typeof error === 'object' &&
+        error !== null &&
+        'statusCode' in error &&
+        typeof error.statusCode === 'number'
+            ? error.statusCode
+            : 500;
+
+    logger.error('MCP HTTP request failed', {
+        method: request.method,
+        url: request.url,
+        error: errorMessage
+    });
+
+    if (reply.sent) return reply;
+
+    return reply.code(statusCode).send({
+        error: statusCode < 500 ? errorMessage : 'The MCP server could not complete the request.'
+    });
+});
+
 type McpDefinition = {
     name: string;
     createServer: () => ReturnType<typeof createGithubMcpServer>;
@@ -49,7 +73,9 @@ const handleMcpRequest = async (request: FastifyRequest, reply: FastifyReply) =>
         await server.connect(transport);
 
         reply.raw.on('close', () => {
-            void transport.close();
+            void transport.close().catch((error: unknown) => {
+                logger.warn('MCP transport cleanup failed', { mcpName, error });
+            });
         });
 
         await transport.handleRequest(request.raw, reply.raw, request.body);
@@ -60,10 +86,14 @@ app.get('/:mcpName', handleMcpRequest);
 app.post('/:mcpName', handleMcpRequest);
 app.delete('/:mcpName', handleMcpRequest);
 
-app.listen({ host: '0.0.0.0', port: 3000 }, () => {
+try {
+    await app.listen({ host: '0.0.0.0', port: 3000 });
     logger.info('MCP server started', { port: 3000 });
     console.log('Server is running on http://localhost:3000');
     for (const definition of mcpDefinitions) {
         console.log(`${definition.name} is available at http://localhost:3000/${definition.name}`);
     }
-});
+} catch (error) {
+    logger.error('MCP server failed to start', error);
+    process.exitCode = 1;
+}

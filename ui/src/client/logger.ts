@@ -1,4 +1,5 @@
-const isDevelopment = (import.meta.env.VITE_APP_ENV ?? 'dev').toLowerCase() !== 'prod'
+const appEnvironment = import.meta.env.VITE_APP_ENV ?? (import.meta.env.DEV ? 'dev' : 'prod')
+const isDevelopment = appEnvironment.toLowerCase() !== 'prod'
 
 // Keep routine browser logs for development while retaining warnings and errors in production.
 export const logger = {
