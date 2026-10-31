@@ -41,7 +41,7 @@ The endpoint supports Streamable HTTP `GET`, `POST`, and `DELETE` requests. CORS
 
 `APP_ENV=dev` logs actions, successes, and failures. Use `APP_ENV=prod` to log warnings and failures only. The server never logs OAuth tokens or model/file contents.
 
-The MCP server forwards model requests to `MODEL_BASE_URL` and uses `MODEL_TIMEOUT_SECONDS` for its request deadline. Keep that value aligned with the model service configuration; the default is 180 seconds.
+The MCP server forwards model requests to `MODEL_BASE_URL` and uses `MODEL_TIMEOUT_SECONDS` for its request deadline. For local runs, set `MODEL_BASE_URL=http://localhost:8000`; Docker Compose overrides it to use the `model` service name. Keep the timeout aligned with the model service configuration; the default is 180 seconds.
 
 ## MCP Tools
 

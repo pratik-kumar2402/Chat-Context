@@ -19,7 +19,7 @@ The model loads `.env` relative to `index.py`, so it can be started from either 
 
 The response rules in `instructions.md` are loaded into the model's system prompt for every chat request. Keep that file focused on response behavior and guard-rails; retrieved documents are treated as untrusted context.
 
-The API runs at `http://localhost:8000` by default:
+When running locally, the API binds to `127.0.0.1` and runs at `http://localhost:8000` by default. Docker Compose overrides the bind address to `0.0.0.0` so the MCP container can reach it, and points Ollama requests at the Compose service name `ollama`:
 
 - `GET /health`
 - `POST /ingest`
