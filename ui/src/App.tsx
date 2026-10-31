@@ -4,7 +4,7 @@ import Chat from './components/Chat/Chat'
 import ControlPanel from './components/ControlPanel/ControlPanel'
 import Footer from './components/Footer/Footer'
 import Navbar from './components/Navbar/Navbar'
-import { createGithubMcpClient } from './client/Client'
+import { createGithubMcpClient, createGoogleDriveMcpClient } from './client/Client'
 import { logger } from './client/logger'
 
 function App() {
@@ -15,6 +15,41 @@ function App() {
     const callbackParams = new URLSearchParams(window.location.search)
     const code = callbackParams.get('code')
     const state = callbackParams.get('state')
+    const isGoogleDriveCallback = window.location.pathname.endsWith('/callback/google')
+
+    if (isGoogleDriveCallback) {
+      const callbackError = callbackParams.get('error_description') ?? callbackParams.get('error')
+      window.history.replaceState({}, document.title, window.location.pathname)
+      if (callbackError || !code || !state) {
+        window.dispatchEvent(new CustomEvent(
+          'google-drive-connection-error',
+          { detail: callbackError ?? 'Google OAuth callback did not include a code and state.' },
+        ))
+        return
+      }
+
+      const completeGoogleDriveAuthentication = async () => {
+        let mcpClient: Awaited<ReturnType<typeof createGoogleDriveMcpClient>> | undefined
+        try {
+          logger.info('Google Drive callback handling started')
+          mcpClient = await createGoogleDriveMcpClient()
+          await mcpClient.completeAuthentication(code, state)
+          window.dispatchEvent(new Event('google-drive-connection-changed'))
+          logger.info('Google Drive callback handling succeeded')
+        } catch (error) {
+          logger.error('Google Drive callback handling failed', error)
+          window.dispatchEvent(new CustomEvent(
+            'google-drive-connection-error',
+            { detail: error instanceof Error ? error.message : 'Google Drive authentication callback failed.' },
+          ))
+        } finally {
+          await mcpClient?.close()
+        }
+      }
+
+      void completeGoogleDriveAuthentication()
+      return
+    }
 
     if (!code || !state) return
 

@@ -37,7 +37,7 @@ Set `APP_ENV=dev` for routine service logs and `APP_ENV=prod` for warnings and e
 
 ## Workflow
 
-GitHub uses an OAuth redirect back to the UI. The page reload after clicking Connect is expected; after the callback succeeds, the button changes to `Disconnect from GitHub`. Repository and file selectors remain disabled until GitHub is connected. Retrieve temporarily disables chat while the selected file is fetched and indexed.
+GitHub and Google Drive use OAuth redirects back to the UI. Configure the Google OAuth client with `http://localhost:5173/callback/google` and enable the Google Drive API. Google Drive requests read-only access and supports Google Docs plus uploaded Markdown/text files. Local source lets you select `.md` / `.txt` files from the browser and index them directly without GitHub or Drive. After choosing a source, retrieve context; chat is temporarily disabled while the selected content is indexed.
 
 Model answers are rendered as Markdown in the chat. The model loads response guard-rails from `model/instructions.md` and uses only retrieved context when answering.
 

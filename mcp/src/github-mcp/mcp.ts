@@ -9,6 +9,15 @@ import { listAllowedGitHubFiles } from './modules/listAllowedGitHubFiles.js';
 import { getGitHubFileContext } from './modules/getGitHubFileContext.js';
 import { ingestGitHubFileContext } from './modules/ingestGitHubFileContext.js';
 import { askLocalModel } from './modules/askLocalModel.js';
+import {
+    disconnectGoogleDrive,
+    getGoogleDriveAuthorizationUrl,
+    getGoogleDriveFileContext,
+    handleGoogleDriveCallback,
+    isGoogleDriveConnected,
+    listGoogleDriveFiles
+} from '../google-drive/common/google-drive.js';
+import { ingestFileContext } from './common/model-client.js';
 
 export const createGithubMcpServer = async () => {
     const server = new McpServer({ name: 'mcp-server', version: '1.0.0' });
@@ -143,6 +152,30 @@ export const createGithubMcpServer = async () => {
     );
 
     server.registerTool(
+        'ingest_local_file_context',
+        {
+            description: 'Chunk and index a user-selected local Markdown or text file in the local vector store.',
+            inputSchema: z.object({ fileName: z.string().min(1), content: z.string().min(1) })
+        },
+        async ({ fileName, content }) => {
+            try {
+                if (!/\.(md|txt)$/i.test(fileName)) {
+                    throw new Error('Only .md and .txt local files can be indexed.');
+                }
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(await ingestFileContext('Local files', fileName, content))
+                    }]
+                };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to ingest local file context.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
         'ask_local_model',
         {
             description: 'Retrieve relevant indexed context and ask the local model to answer a query.',
@@ -153,6 +186,109 @@ export const createGithubMcpServer = async () => {
                 return { content: [{ type: 'text', text: JSON.stringify(await askLocalModel(query)) }] };
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unable to get a response from the local model.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'google_drive_authenticate',
+        { description: 'Create a read-only Google Drive OAuth authorization URL.', inputSchema: z.object({}) },
+        async () => {
+            try {
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify({ authorizationUrl: getGoogleDriveAuthorizationUrl() })
+                    }]
+                };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to create Google authorization URL.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'google_drive_callback',
+        {
+            description: 'Complete Google Drive OAuth using the code and state returned by Google.',
+            inputSchema: z.object({ code: z.string(), state: z.string() })
+        },
+        async ({ code, state }) => {
+            try {
+                return { content: [{ type: 'text', text: await handleGoogleDriveCallback({ code, state }) }] };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Google OAuth callback failed.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'google_drive_status',
+        { description: 'Check whether Google Drive is connected.', inputSchema: z.object({}) },
+        async () => ({
+            content: [{ type: 'text', text: JSON.stringify({ connected: isGoogleDriveConnected() }) }]
+        })
+    );
+
+    server.registerTool(
+        'google_drive_disconnect',
+        { description: 'Clear the server-side Google Drive access tokens.', inputSchema: z.object({}) },
+        async () => ({
+            content: [{ type: 'text', text: JSON.stringify(disconnectGoogleDrive()) }]
+        })
+    );
+
+    server.registerTool(
+        'list_google_drive_files',
+        {
+            description: 'List Google Docs and uploaded Markdown or text files available in Google Drive.',
+            inputSchema: z.object({})
+        },
+        async () => {
+            try {
+                return { content: [{ type: 'text', text: JSON.stringify(await listGoogleDriveFiles()) }] };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to list Google Drive files.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'get_google_drive_file_context',
+        {
+            description: 'Read a Google Doc or uploaded Markdown/text file from Google Drive.',
+            inputSchema: z.object({ fileId: z.string() })
+        },
+        async ({ fileId }) => {
+            try {
+                return { content: [{ type: 'text', text: JSON.stringify(await getGoogleDriveFileContext(fileId)) }] };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to retrieve the Google Drive file.';
+                return { isError: true, content: [{ type: 'text', text: message }] };
+            }
+        }
+    );
+
+    server.registerTool(
+        'ingest_google_drive_file_context',
+        {
+            description: 'Chunk and index Google Drive file context in the local vector store.',
+            inputSchema: z.object({ fileName: z.string(), content: z.string() })
+        },
+        async ({ fileName, content }) => {
+            try {
+                return {
+                    content: [{
+                        type: 'text',
+                        text: JSON.stringify(await ingestFileContext('Google Drive', fileName, content))
+                    }]
+                };
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to ingest Google Drive file context.';
                 return { isError: true, content: [{ type: 'text', text: message }] };
             }
         }

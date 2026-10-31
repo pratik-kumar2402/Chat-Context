@@ -34,7 +34,7 @@ export abstract class BaseMcpClient {
 
   async callTool(name: string, args: Record<string, unknown> = {}, options: { logToolErrors?: boolean } = {}) {
     await this.ensureConnected()
-    // Logging here covers every GitHub tool without exposing request arguments such as file contents.
+    // Keep tool logs source-neutral and avoid exposing request arguments such as file contents.
     logger.info('MCP tool call started', { name })
     let result
     try {
